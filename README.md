@@ -18,6 +18,11 @@ Many little improvements have been made to i3lock over time:
 - i3lock uses PAM and therefore is compatible with LDAP etc.
   On OpenBSD i3lock uses the bsd_auth(3) framework.
 
+  Screenshots
+  ------------
+  ![US layout](/screenshots/i3lock_us.png?raw=true "")
+  ![RU layout](/screenshots/i3lock_ru.png?raw=true "")
+
 Requirements
 ------------
 - pkg-config
@@ -32,6 +37,7 @@ Requirements
 - libx11-xcb-dev
 - libxkbcommon >= 0.5.0
 - libxkbcommon-x11 >= 0.5.0
+- xkb-switch
 
 Running i3lock
 -------------
