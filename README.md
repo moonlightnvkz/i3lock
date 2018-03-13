@@ -18,8 +18,8 @@ Many little improvements have been made to i3lock over time:
 - i3lock uses PAM and therefore is compatible with LDAP etc.
   On OpenBSD i3lock uses the bsd_auth(3) framework.
 
-  Screenshots
-  ------------
+Screenshots
+------------
   ![US layout](/screenshots/i3lock_us.png?raw=true "")
   ![RU layout](/screenshots/i3lock_ru.png?raw=true "")
 
