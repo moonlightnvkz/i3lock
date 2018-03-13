@@ -90,6 +90,12 @@ static struct xkb_compose_state *xkb_compose_state;
 static uint8_t xkb_base_event;
 static uint8_t xkb_base_error;
 static int randr_base = -1;
+char xkb_layout_name[33] = "";
+
+static double clear_auth_wrong_time = TSTAMP_N_SECS(2);
+static double clear_indicator_time = TSTAMP_N_SECS(1);
+static double discard_passwd_time = TSTAMP_N_MINS(3);
+static const double redraw_timeout_time = TSTAMP_N_SECS(0.25);
 
 cairo_surface_t *img = NULL;
 bool tile = false;
@@ -105,6 +111,21 @@ bool skip_repeated_empty_password = false;
  */
 void u8_dec(char *s, int *i) {
     (void)(isutf(s[--(*i)]) || isutf(s[--(*i)]) || isutf(s[--(*i)]) || --(*i));
+}
+
+static void update_xkb_layout() {
+    FILE *xkb_switch = popen("xkb-switch", "r");
+    if (!xkb_switch) {
+      xkb_layout_name[0] = '\0';
+      DEBUG("Failed to open a pipe (xkb-switch)\n");
+      return;
+    }
+    int i = fread(xkb_layout_name, 1, 2, xkb_switch);
+    xkb_layout_name[i] = '\0';
+    DEBUG("%s", xkb_layout_name);
+    pclose(xkb_switch);
+    // xkb_layout_index_t layout_index = xkb_state_serialize_layout(xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+    // xkb_layout_name = xkb_keymap_layout_get_name(xkb_keymap, layout_index);
 }
 
 /*
@@ -139,7 +160,6 @@ static bool load_keymap(void) {
 
     xkb_state_unref(xkb_state);
     xkb_state = new_state;
-
     return true;
 }
 
@@ -351,7 +371,7 @@ static void input_done(void) {
     /* Clear this state after 2 seconds (unless the user enters another
      * password during that time). */
     ev_now_update(main_loop);
-    START_TIMER(clear_auth_wrong_timeout, TSTAMP_N_SECS(2), clear_auth_wrong);
+    START_TIMER(clear_auth_wrong_timeout, clear_auth_wrong_time, clear_auth_wrong);
 
     /* Cancel the clear_indicator_timeout, it would hide the unlock indicator
      * too early. */
@@ -386,6 +406,8 @@ static bool skip_without_validation(void) {
  *
  */
 static void handle_key_press(xcb_key_press_event_t *event) {
+    update_xkb_layout();
+
     xkb_keysym_t ksym;
     char buffer[128];
     int n;
@@ -474,7 +496,7 @@ static void handle_key_press(xcb_key_press_event_t *event) {
                 break;
 
             if (input_position == 0) {
-                START_TIMER(clear_indicator_timeout, 1.0, clear_indicator_cb);
+                START_TIMER(clear_indicator_timeout, clear_indicator_time, clear_indicator_cb);
                 unlock_state = STATE_NOTHING_TO_DELETE;
                 redraw_screen();
                 return;
@@ -486,7 +508,7 @@ static void handle_key_press(xcb_key_press_event_t *event) {
 
             /* Hide the unlock indicator after a bit if the password buffer is
              * empty. */
-            START_TIMER(clear_indicator_timeout, 1.0, clear_indicator_cb);
+            START_TIMER(clear_indicator_timeout, clear_indicator_time, clear_indicator_cb);
             unlock_state = STATE_BACKSPACE_ACTIVE;
             redraw_screen();
             unlock_state = STATE_KEY_PRESSED;
@@ -521,11 +543,11 @@ static void handle_key_press(xcb_key_press_event_t *event) {
         unlock_state = STATE_KEY_PRESSED;
 
         struct ev_timer *timeout = NULL;
-        START_TIMER(timeout, TSTAMP_N_SECS(0.25), redraw_timeout);
+        START_TIMER(timeout, redraw_timeout_time, redraw_timeout);
         STOP_TIMER(clear_indicator_timeout);
     }
 
-    START_TIMER(discard_passwd_timeout, TSTAMP_N_MINS(3), discard_passwd_cb);
+    START_TIMER(discard_passwd_timeout, discard_passwd_time, discard_passwd_cb);
 }
 
 /*
@@ -877,6 +899,7 @@ int main(int argc, char *argv[]) {
         {"ignore-empty-password", no_argument, NULL, 'e'},
         {"inactivity-timeout", required_argument, NULL, 'I'},
         {"show-failed-attempts", no_argument, NULL, 'f'},
+        {"wrong-auth-timeout", required_argument, NULL, 'W'},
         {NULL, no_argument, NULL, 0}};
 
     if ((pw = getpwuid(getuid())) == NULL)
@@ -942,6 +965,13 @@ int main(int argc, char *argv[]) {
             case 'f':
                 show_failed_attempts = true;
                 break;
+            case 'W': {
+                // if no valid conversion could be performed, a zero is returned (0.0)
+                // the errno should be checked, but i don't care
+                double d = strtod(optarg, NULL);
+                clear_auth_wrong_time = TSTAMP_N_SECS(d);
+                break;
+            }
             default:
                 errx(EXIT_FAILURE, "Syntax: i3lock [-v] [-n] [-b] [-d] [-c color] [-u] [-p win|default]"
                                    " [-i image.png] [-t] [-e] [-I timeout] [-f]");

@@ -10,6 +10,8 @@ tags
 # http://www.gnu.org/software/automake
 
 Makefile.in
+Makefile
+makefile*~
 /ar-lib
 /test-driver
 

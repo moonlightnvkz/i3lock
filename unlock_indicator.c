@@ -68,6 +68,8 @@ extern int failed_attempts;
 /* The root screen, to determine the DPI. */
 extern xcb_screen_t *screen;
 
+/* Current layout */
+extern char xkb_layout_name[33];
 /*******************************************************************************
  * Local variables.
  ******************************************************************************/
@@ -230,6 +232,7 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
             default:
                 if (unlock_state == STATE_NOTHING_TO_DELETE) {
                     text = "no input";
+                    break;
                 }
                 if (show_failed_attempts && failed_attempts > 0) {
                     if (failed_attempts > 999) {
@@ -240,7 +243,10 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
                     }
                     cairo_set_source_rgb(ctx, 1, 0, 0);
                     cairo_set_font_size(ctx, 32.0);
+                    break;
                 }
+                cairo_set_source_rgba(ctx, 1, 1, 1, 0.75);
+                text = xkb_layout_name;
                 break;
         }
 
